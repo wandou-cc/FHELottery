@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FHEVM Privacy Lottery System</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .network {
+            font-size: 0.8rem;
+            color: #28a745;
+            font-weight: 600;
+            background: rgba(40, 167, 69, 0.1);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid rgba(40, 167, 69, 0.3);
+        }
+        
+        .wallet-details {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.25rem;
+        }
+        
+        .success-banner {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            color: #155724;
+        }
+        
+        .ticket-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+        
+        .ticket-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .ticket-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .ticket-id {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        
+        .ticket-status {
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .ticket-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .ticket-status.unclaimed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .ticket-status.claimed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .ticket-info {
+            margin-bottom: 1rem;
+        }
+        
+        .ticket-info p {
+            margin: 0.5rem 0;
+            color: #666;
+        }
+        
+        .ticket-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .action-btn.check {
+            background: #667eea;
+            color: white;
+        }
+        
+        .action-btn.check:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .action-btn.claim {
+            background: #28a745;
+            color: white;
+        }
+        
+        .action-btn.claim:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo">
+                        <i class="fas fa-shield-alt"></i>
+                        <h1>FHEVM Privacy Lottery</h1>
+                    </div>
+                    <div class="wallet-info" id="walletInfo">
+                        <button class="connect-btn" id="connectBtn">
+                            <i class="fas fa-wallet"></i>
+                            Connect Wallet
+                        </button>
+                        <div class="wallet-details" id="walletDetails" style="display: none;">
+                            <span class="address" id="walletAddress"></span>
+                            <span class="balance" id="walletBalance"></span>
+                            <span class="network" id="networkInfo">Sepolia Testnet</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <div class="container">
+                <!-- Success Banner -->
+                <div class="success-banner">
+                    <strong>✅ FHEVM SDK Integrated!</strong> You can now purchase lottery tickets with full privacy protection.
+                    Your numbers are encrypted using Fully Homomorphic Encryption technology.
+                </div>
+
+                <!-- Status Cards -->
+                <div class="status-grid">
+                    <div class="status-card">
+                        <div class="status-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="status-content">
+                            <h3>Draw Status</h3>
+                            <p id="drawStatus">Checking...</p>
+                        </div>
+                    </div>
+                    <div class="status-card">
+                        <div class="status-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <div class="status-content">
+                            <h3>Prize Pool</h3>
+                            <p id="prizePool">0 ETH</p>
+                        </div>
+                    </div>
+                    <div class="status-card">
+                        <div class="status-icon">
+                            <i class="fas fa-ticket-alt"></i>
+                        </div>
+                        <div class="status-content">
+                            <h3>Current Round</h3>
+                            <p id="currentTicketId">0</p>
+                        </div>
+                    </div>
+                    <div class="status-card">
+                        <div class="status-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <div class="status-content">
+                            <h3>Buying Status</h3>
+                            <p id="buyingStatus">Checking...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lottery Interface -->
+                <div class="lottery-interface">
+                    <div class="lottery-card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-dice"></i> Buy Lottery Ticket</h2>
+                            <p class="card-subtitle">Protect your privacy with FHEVM technology</p>
+                        </div>
+                        
+                        <div class="lottery-form">
+                            <div class="number-selection">
+                                <div class="number-group">
+                                    <h3>Main Numbers (Select 5, Range 0-31)</h3>
+                                    <div class="number-grid" id="frontNumbers"></div>
+                                </div>
+                                
+                                <div class="number-group">
+                                    <h3>Bonus Numbers (Select 2, Range 0-9)</h3>
+                                    <div class="number-grid" id="backNumbers"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="selected-numbers">
+                                <div class="selected-group">
+                                    <h4>Selected Main Numbers:</h4>
+                                    <div class="selected-display" id="selectedFront"></div>
+                                </div>
+                                <div class="selected-group">
+                                    <h4>Selected Bonus Numbers:</h4>
+                                    <div class="selected-display" id="selectedBack"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="purchase-section">
+                                <div class="price-info">
+                                    <span class="price">Price: 0.001 ETH</span>
+                                </div>
+                                <button class="purchase-btn" id="purchaseBtn" disabled>
+                                    <i class="fas fa-shopping-cart"></i>
+                                    Buy Ticket
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Tickets -->
+                <div class="tickets-section">
+                    <div class="tickets-card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-ticket-alt"></i> My Tickets</h2>
+                            <button class="refresh-btn" id="refreshTickets">
+                                <i class="fas fa-sync-alt"></i>
+                                Refresh
+                            </button>
+                        </div>
+                        <div class="tickets-list" id="ticketsList">
+                            <div class="empty-state">
+                                <i class="fas fa-ticket-alt"></i>
+                                <p>No tickets yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p id="loadingText">Processing...</p>
+            </div>
+        </div>
+
+        <!-- Notification -->
+        <div class="notification" id="notification">
+            <div class="notification-content">
+                <i class="fas fa-info-circle"></i>
+                <span id="notificationText"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script type="module">
+        // Import FHEVM SDK
+        import { initSDK, createInstance, SepoliaConfig } from 'https://cdn.zama.ai/relayer-sdk-js/0.2.0/relayer-sdk-js.js';
+
+        // FHEVM Lottery Application with SDK Integration
+        class FHEVMLottery {
+            constructor() {
+                this.provider = null;
+                this.signer = null;
+                this.contract = null;
+                this.fhevmInstance = null;
+                this.account = null;
+                this.selectedFrontNumbers = [];
+                this.selectedBackNumbers = [];
+                
+                // Contract configuration - Sepolia Testnet
+                this.contractAddress = '0xDc5E597cd37d0E17E050bB3E8B2C0fF99511B199';
+                this.contractABI = [
+                    {"inputs":[],"name":"TICKET_PRICE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"isBuyingOpen","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"hasDrawn","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"currentTicketId","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[],"name":"getTotalPrizePool","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[{"internalType":"externalEuint8","name":"_num1","type":"bytes32"},{"internalType":"externalEuint8","name":"_num2","type":"bytes32"},{"internalType":"externalEuint8","name":"_num3","type":"bytes32"},{"internalType":"externalEuint8","name":"_num4","type":"bytes32"},{"internalType":"externalEuint8","name":"_num5","type":"bytes32"},{"internalType":"externalEuint8","name":"_bonus1","type":"bytes32"},{"internalType":"externalEuint8","name":"_bonus2","type":"bytes32"},{"internalType":"bytes","name":"inputProof","type":"bytes"}],"name":"buyTicket","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"payable","type":"function"},
+                    {"inputs":[{"internalType":"uint256","name":"ticketId","type":"uint256"}],"name":"getTicket","outputs":[{"components":[{"internalType":"address","name":"player","type":"address"},{"components":[{"internalType":"euint8","name":"num1","type":"bytes32"},{"internalType":"euint8","name":"num2","type":"bytes32"},{"internalType":"euint8","name":"num3","type":"bytes32"},{"internalType":"euint8","name":"num4","type":"bytes32"},{"internalType":"euint8","name":"num5","type":"bytes32"},{"internalType":"euint8","name":"bonus1","type":"bytes32"},{"internalType":"euint8","name":"bonus2","type":"bytes32"}],"internalType":"struct Lottery.LotteryNumbers","name":"numbers","type":"tuple"},{"internalType":"uint256","name":"purchaseTime","type":"uint256"},{"internalType":"bool","name":"exists","type":"bool"}],"internalType":"struct Lottery.Ticket","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[{"internalType":"uint256","name":"ticketId","type":"uint256"}],"name":"hasClaimed","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+                    {"inputs":[{"internalType":"uint256","name":"ticketId","type":"uint256"}],"name":"checkTicket","outputs":[],"stateMutability":"nonpayable","type":"function"},
+                    {"inputs":[{"internalType":"uint256","name":"ticketId","type":"uint256"}],"name":"getTicketPrizeLevel","outputs":[{"internalType":"euint8","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},
+                    {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"ticketId","type":"uint256"},{"indexed":true,"internalType":"address","name":"player","type":"address"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"TicketPurchased","type":"event"}
+                ];
+                
+                this.init();
+            }
+            
+            async init() {
+                try {
+                    console.log('🚀 Initializing FHEVM Lottery Application...');
+                    
+                    // Initialize FHEVM SDK
+                    await this.initFHEVM();
+                    
+                    this.initUI();
+                    await this.checkWalletConnection();
+                    this.updateStatus();
+                    
+                    console.log('✅ Application initialized successfully');
+                } catch (error) {
+                    console.error('❌ Initialization failed:', error);
+                    this.showNotification('Initialization failed: ' + error.message, 'error');
+                }
+            }
+            
+            async initFHEVM() {
+                try {
+                    console.log('🔐 Initializing FHEVM SDK...');
+                    
+                    // Step 1: Initialize SDK
+                    await initSDK();
+                    console.log('✅ FHEVM SDK initialized successfully');
+                    
+                    // Step 2: Create FHEVM instance (deferred until wallet connection)
+                    
+                } catch (error) {
+                    console.error('❌ FHEVM SDK initialization failed:', error);
+                    throw error;
+                }
+            }
+            
+            initUI() {
+                this.generateNumberButtons();
+                this.bindEventListeners();
+            }
+            
+            generateNumberButtons() {
+                // Generate main number buttons (0-31)
+                const frontGrid = document.getElementById('frontNumbers');
+                frontGrid.innerHTML = '';
+                
+                for (let i = 0; i <= 31; i++) {
+                    const btn = document.createElement('button');
+                    btn.className = 'number-btn';
+                    btn.textContent = i;
+                    btn.onclick = () => this.selectFrontNumber(i);
+                    frontGrid.appendChild(btn);
+                }
+                
+                // Generate bonus number buttons (0-9)
+                const backGrid = document.getElementById('backNumbers');
+                backGrid.innerHTML = '';
+                
+                for (let i = 0; i <= 9; i++) {
+                    const btn = document.createElement('button');
+                    btn.className = 'number-btn';
+                    btn.textContent = i;
+                    btn.onclick = () => this.selectBackNumber(i);
+                    backGrid.appendChild(btn);
+                }
+            }
+            
+            bindEventListeners() {
+                document.getElementById('connectBtn').onclick = () => this.connectWallet();
+                document.getElementById('purchaseBtn').onclick = () => this.purchaseTicket();
+                document.getElementById('refreshTickets').onclick = () => this.loadMyTickets();
+                
+                if (window.ethereum) {
+                    window.ethereum.on('accountsChanged', (accounts) => {
+                        if (accounts.length === 0) {
+                            this.disconnectWallet();
+                        } else {
+                            this.account = accounts[0];
+                            this.updateWalletInfo();
+                        }
+                    });
+                    
+                    // Listen for network changes
+                    window.ethereum.on('chainChanged', (chainId) => {
+                        console.log('Network changed:', chainId);
+                        this.handleNetworkChange(chainId);
+                    });
+                }
+            }
+            
+            async checkWalletConnection() {
+                if (window.ethereum) {
+                    try {
+                        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                        if (accounts.length > 0) {
+                            this.account = accounts[0];
+                            await this.setupProvider();
+                            this.updateWalletInfo();
+                        }
+                    } catch (error) {
+                        console.error('Wallet connection check failed:', error);
+                    }
+                }
+            }
+            
+            async connectWallet() {
+                if (!window.ethereum) {
+                    this.showNotification('Please install MetaMask wallet', 'error');
+                    return;
+                }
+                
+                try {
+                    this.showLoading('Connecting wallet...');
+                    
+                    // Check and switch to Sepolia testnet
+                    await this.checkAndSwitchNetwork();
+                    
+                    const accounts = await window.ethereum.request({ 
+                        method: 'eth_requestAccounts' 
+                    });
+                    
+                    this.account = accounts[0];
+                    await this.setupProvider();
+                    this.updateWalletInfo();
+                    this.updateStatus();
+                    
+                    this.hideLoading();
+                    this.showNotification('Wallet connected successfully', 'success');
+                    
+                } catch (error) {
+                    this.hideLoading();
+                    console.error('Wallet connection failed:', error);
+                    this.showNotification('Connection failed: ' + error.message, 'error');
+                }
+            }
+            
+            async checkAndSwitchNetwork() {
+                const sepoliaChainId = '0xaa36a7'; // Sepolia Chain ID: 11155111
+                
+                try {
+                    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                    
+                    if (chainId !== sepoliaChainId) {
+                        this.showNotification('Switching to Sepolia testnet...', 'info');
+                        
+                        try {
+                            // Try to switch to Sepolia network
+                            await window.ethereum.request({
+                                method: 'wallet_switchEthereumChain',
+                                params: [{ chainId: sepoliaChainId }],
+                            });
+                        } catch (switchError) {
+                            // If network doesn't exist, add it
+                            if (switchError.code === 4902) {
+                                await window.ethereum.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: sepoliaChainId,
+                                        chainName: 'Sepolia Test Network',
+                                        nativeCurrency: {
+                                            name: 'SepoliaETH',
+                                            symbol: 'ETH',
+                                            decimals: 18,
+                                        },
+                                        rpcUrls: ['https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'],
+                                        blockExplorerUrls: ['https://sepolia.etherscan.io'],
+                                    }],
+                                });
+                            } else {
+                                throw switchError;
+                            }
+                        }
+                        
+                        this.showNotification('Switched to Sepolia testnet', 'success');
+                    }
+                } catch (error) {
+                    console.error('Network switch failed:', error);
+                    this.showNotification('Network switch failed, please switch manually', 'error');
+                    throw error;
+                }
+            }
+            
+            async setupProvider() {
+                this.provider = new ethers.providers.Web3Provider(window.ethereum);
+                this.signer = this.provider.getSigner();
+                this.contract = new ethers.Contract(this.contractAddress, this.contractABI, this.signer);
+                
+                // Create FHEVM instance
+                try {
+                    console.log('🔐 Creating FHEVM instance...');
+                    this.fhevmInstance = await createInstance({
+                        ...SepoliaConfig,
+                        network: window.ethereum
+                    });
+                    console.log('✅ FHEVM instance created successfully');
+                } catch (error) {
+                    console.error('❌ FHEVM instance creation failed:', error);
+                    this.showNotification('FHEVM instance creation failed: ' + error.message, 'error');
+                }
+                
+                // Verify contract
+                await this.verifyContract();
+            }
+            
+            async verifyContract() {
+                try {
+                    const ticketPrice = await this.contract.TICKET_PRICE();
+                    console.log('✅ Contract verified, ticket price:', ethers.utils.formatEther(ticketPrice), 'ETH');
+                } catch (error) {
+                    console.error('❌ Contract verification failed:', error);
+                    this.showNotification('Contract address invalid or not deployed', 'error');
+                    throw new Error('Contract verification failed');
+                }
+            }
+            
+            disconnectWallet() {
+                this.account = null;
+                this.provider = null;
+                this.signer = null;
+                this.contract = null;
+                this.fhevmInstance = null;
+                this.updateWalletInfo();
+                this.showNotification('Wallet disconnected', 'warning');
+            }
+            
+            updateWalletInfo() {
+                const connectBtn = document.getElementById('connectBtn');
+                const walletDetails = document.getElementById('walletDetails');
+                
+                if (this.account) {
+                    connectBtn.style.display = 'none';
+                    walletDetails.style.display = 'flex';
+                    document.getElementById('walletAddress').textContent = 
+                        this.account.slice(0, 6) + '...' + this.account.slice(-4);
+                    this.updateBalance();
+                } else {
+                    connectBtn.style.display = 'flex';
+                    walletDetails.style.display = 'none';
+                }
+            }
+            
+            async updateBalance() {
+                if (!this.provider || !this.account) return;
+                
+                try {
+                    const balance = await this.provider.getBalance(this.account);
+                    const balanceEth = ethers.utils.formatEther(balance);
+                    document.getElementById('walletBalance').textContent = 
+                        parseFloat(balanceEth).toFixed(4) + ' ETH';
+                } catch (error) {
+                    console.error('Failed to get balance:', error);
+                }
+            }
+            
+            handleNetworkChange(chainId) {
+                const sepoliaChainId = '0xaa36a7';
+                
+                if (chainId === sepoliaChainId) {
+                    this.showNotification('Connected to Sepolia testnet', 'success');
+                    document.getElementById('networkInfo').textContent = 'Sepolia Testnet';
+                    this.updateStatus();
+                } else {
+                    this.showNotification('Please switch to Sepolia testnet', 'warning');
+                    document.getElementById('networkInfo').textContent = 'Wrong Network';
+                }
+            }
+            
+            selectFrontNumber(number) {
+                const index = this.selectedFrontNumbers.indexOf(number);
+                
+                if (index > -1) {
+                    this.selectedFrontNumbers.splice(index, 1);
+                } else if (this.selectedFrontNumbers.length < 5) {
+                    this.selectedFrontNumbers.push(number);
+                } else {
+                    this.showNotification('Maximum 5 main numbers', 'warning');
+                    return;
+                }
+                
+                this.updateNumberButtons();
+                this.updateSelectedDisplay();
+                this.updatePurchaseButton();
+            }
+            
+            selectBackNumber(number) {
+                const index = this.selectedBackNumbers.indexOf(number);
+                
+                if (index > -1) {
+                    this.selectedBackNumbers.splice(index, 1);
+                } else if (this.selectedBackNumbers.length < 2) {
+                    this.selectedBackNumbers.push(number);
+                } else {
+                    this.showNotification('Maximum 2 bonus numbers', 'warning');
+                    return;
+                }
+                
+                this.updateNumberButtons();
+                this.updateSelectedDisplay();
+                this.updatePurchaseButton();
+            }
+            
+            updateNumberButtons() {
+                const frontButtons = document.querySelectorAll('#frontNumbers .number-btn');
+                frontButtons.forEach((btn, index) => {
+                    if (this.selectedFrontNumbers.includes(index)) {
+                        btn.classList.add('selected');
+                    } else {
+                        btn.classList.remove('selected');
+                    }
+                });
+                
+                const backButtons = document.querySelectorAll('#backNumbers .number-btn');
+                backButtons.forEach((btn, index) => {
+                    if (this.selectedBackNumbers.includes(index)) {
+                        btn.classList.add('selected');
+                    } else {
+                        btn.classList.remove('selected');
+                    }
+                });
+            }
+            
+            updateSelectedDisplay() {
+                const selectedFront = document.getElementById('selectedFront');
+                selectedFront.innerHTML = this.selectedFrontNumbers
+                    .sort((a, b) => a - b)
+                    .map(num => `<span class="selected-number">${num}</span>`)
+                    .join('');
+                
+                const selectedBack = document.getElementById('selectedBack');
+                selectedBack.innerHTML = this.selectedBackNumbers
+                    .sort((a, b) => a - b)
+                    .map(num => `<span class="selected-number">${num}</span>`)
+                    .join('');
+            }
+            
+            updatePurchaseButton() {
+                const purchaseBtn = document.getElementById('purchaseBtn');
+                const canPurchase = this.selectedFrontNumbers.length === 5 && 
+                                   this.selectedBackNumbers.length === 2 && 
+                                   this.account &&
+                                   this.fhevmInstance;
+                
+                purchaseBtn.disabled = !canPurchase;
+            }
+            
+            async purchaseTicket() {
+                if (!this.account || !this.contract || !this.fhevmInstance) {
+                    this.showNotification('Please connect wallet first', 'error');
+                    return;
+                }
+                
+                if (this.selectedFrontNumbers.length !== 5 || this.selectedBackNumbers.length !== 2) {
+                    this.showNotification('Please select correct number of tickets', 'error');
+                    return;
+                }
+                
+                try {
+                    this.showLoading('Encrypting lottery numbers...');
+                    
+                    // Check contract status
+                    await this.checkContractStatus();
+                    
+                    // Encrypt numbers using FHEVM SDK
+                    console.log('🔐 Encrypting numbers with FHEVM SDK...');
+                    const encryptedData = await this.encryptNumbers();
+                    
+                    this.showLoading('Sending purchase transaction...');
+                    console.log('📤 Sending purchase transaction...');
+                    
+                    // Call contract to buy ticket
+                    const tx = await this.contract.buyTicket(
+                        encryptedData.handles[0],
+                        encryptedData.handles[1],
+                        encryptedData.handles[2],
+                        encryptedData.handles[3],
+                        encryptedData.handles[4],
+                        encryptedData.handles[5],
+                        encryptedData.handles[6],
+                        encryptedData.inputProof,
+                        { 
+                            value: ethers.utils.parseEther('0.001'),
+                            gasLimit: 2000000
+                        }
+                    );
+                    
+                    this.showNotification('Transaction submitted, waiting for confirmation...', 'info');
+                    console.log('⏳ Waiting for transaction confirmation...');
+                    
+                    const receipt = await tx.wait();
+                    
+                    if (receipt.status === 1) {
+                        this.showNotification('🎉 Ticket purchased successfully!', 'success');
+                        console.log('✅ Purchase successful, tx hash:', receipt.transactionHash);
+                        this.clearSelection();
+                        this.updateStatus();
+                        
+                        // Auto-refresh ticket list
+                        setTimeout(() => {
+                            this.loadMyTickets();
+                        }, 1000);
+                    } else {
+                        this.showNotification('Transaction failed', 'error');
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Purchase failed:', error);
+                    
+                    // Detailed error handling
+                    if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+                        this.showNotification('Transaction cancelled', 'warning');
+                    } else if (error.message && error.message.includes('execution reverted')) {
+                        this.showNotification('Contract execution failed, buying may be closed', 'error');
+                    } else {
+                        this.showNotification('Purchase failed: ' + error.message, 'error');
+                    }
+                } finally {
+                    this.hideLoading();
+                }
+            }
+            
+            async encryptNumbers() {
+                try {
+                    // Combine all numbers
+                    const numbers = [
+                        ...this.selectedFrontNumbers,
+                        ...this.selectedBackNumbers
+                    ];
+                    
+                    console.log('📝 Numbers to encrypt:', numbers);
+                    
+                    // Create encrypted input buffer
+                    const buffer = this.fhevmInstance.createEncryptedInput(
+                        this.contractAddress,  // Contract address
+                        this.account           // User address
+                    );
+                    
+                    // Add 7 euint8 numbers
+                    for (let i = 0; i < 7; i++) {
+                        buffer.add8(BigInt(numbers[i]));
+                    }
+                    
+                    // Encrypt and upload
+                    console.log('🔐 Encrypting and uploading...');
+                    const encryptedData = await buffer.encrypt();
+                    
+                    console.log('✅ Encryption successful');
+                    console.log('Handles:', encryptedData.handles);
+                    console.log('InputProof length:', encryptedData.inputProof.length);
+                    
+                    return encryptedData;
+                    
+                } catch (error) {
+                    console.error('❌ Encryption failed:', error);
+                    throw new Error('Number encryption failed: ' + error.message);
+                }
+            }
+            
+            async checkContractStatus() {
+                try {
+                    const [isBuyingOpen, hasDrawn] = await Promise.all([
+                        this.contract.isBuyingOpen(),
+                        this.contract.hasDrawn()
+                    ]);
+                    
+                    console.log('📊 Contract status:', { isBuyingOpen, hasDrawn });
+                    
+                    if (!isBuyingOpen) {
+                        throw new Error('Buying is closed');
+                    }
+                    
+                    if (hasDrawn) {
+                        throw new Error('Current round already drawn');
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Contract status check failed:', error);
+                    throw error;
+                }
+            }
+            
+            clearSelection() {
+                this.selectedFrontNumbers = [];
+                this.selectedBackNumbers = [];
+                this.updateNumberButtons();
+                this.updateSelectedDisplay();
+                this.updatePurchaseButton();
+            }
+            
+            async updateStatus() {
+                if (!this.contract) return;
+                
+                try {
+                    const [isBuyingOpen, hasDrawn, currentTicketId, totalPrizePool] = await Promise.all([
+                        this.contract.isBuyingOpen(),
+                        this.contract.hasDrawn(),
+                        this.contract.currentTicketId(),
+                        this.contract.getTotalPrizePool()
+                    ]);
+                    
+                    document.getElementById('drawStatus').textContent = hasDrawn ? 'Drawn' : 'Not Drawn';
+                    document.getElementById('prizePool').textContent = 
+                        ethers.utils.formatEther(totalPrizePool) + ' ETH';
+                    document.getElementById('currentTicketId').textContent = currentTicketId.toString();
+                    document.getElementById('buyingStatus').textContent = isBuyingOpen ? 'Open' : 'Closed';
+                    
+                    const purchaseBtn = document.getElementById('purchaseBtn');
+                    if (!isBuyingOpen) {
+                        purchaseBtn.disabled = true;
+                        purchaseBtn.innerHTML = '<i class="fas fa-ban"></i> Buying Closed';
+                    } else if (hasDrawn) {
+                        purchaseBtn.disabled = true;
+                        purchaseBtn.innerHTML = '<i class="fas fa-check"></i> Round Drawn';
+                    } else {
+                        purchaseBtn.innerHTML = '<i class="fas fa-shopping-cart"></i> Buy Ticket';
+                        this.updatePurchaseButton();
+                    }
+                    
+                } catch (error) {
+                    console.error('Status update failed:', error);
+                }
+            }
+            
+            async loadMyTickets() {
+                if (!this.contract || !this.account) {
+                    this.showNotification('Please connect wallet first', 'error');
+                    return;
+                }
+                
+                try {
+                    this.showLoading('Loading my tickets...');
+                    
+                    // Get current max ticket ID
+                    const currentTicketId = await this.contract.currentTicketId();
+                    const totalTickets = currentTicketId.toNumber();
+                    
+                    console.log('📊 Total tickets:', totalTickets);
+                    
+                    if (totalTickets === 0) {
+                        this.showNotification('No tickets purchased yet', 'info');
+                        this.hideLoading();
+                        return;
+                    }
+                    
+                    // Method 1: Query from events (recommended)
+                    await this.loadTicketsFromEvents();
+                    
+                } catch (error) {
+                    console.error('❌ Failed to load tickets:', error);
+                    this.showNotification('Load failed: ' + error.message, 'error');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+            
+            async loadTicketsFromEvents() {
+                try {
+                    console.log('🔍 Querying my tickets from events...');
+                    
+                    // Query TicketPurchased events
+                    const filter = this.contract.filters.TicketPurchased(null, this.account);
+                    const events = await this.contract.queryFilter(filter);
+                    
+                    console.log('📋 Found', events.length, 'of my tickets');
+                    
+                    if (events.length === 0) {
+                        this.displayNoTickets();
+                        return;
+                    }
+                    
+                    // Get ticket details
+                    const tickets = [];
+                    for (const event of events) {
+                        const ticketId = event.args.ticketId.toNumber();
+                        const ticket = await this.getTicketDetails(ticketId);
+                        tickets.push(ticket);
+                    }
+                    
+                    this.displayTickets(tickets);
+                    
+                } catch (error) {
+                    console.error('❌ Event query failed:', error);
+                    // If event query fails, try iterating all tickets
+                    await this.loadTicketsByIteration();
+                }
+            }
+            
+            async loadTicketsByIteration() {
+                try {
+                    console.log('🔍 Querying my tickets by iteration...');
+                    
+                    const currentTicketId = await this.contract.currentTicketId();
+                    const totalTickets = currentTicketId.toNumber();
+                    
+                    const myTickets = [];
+                    
+                    // Iterate through all tickets
+                    for (let i = 1; i <= totalTickets; i++) {
+                        try {
+                            const ticket = await this.contract.getTicket(i);
+                            
+                            if (ticket.exists && ticket.player.toLowerCase() === this.account.toLowerCase()) {
+                                const ticketDetails = await this.getTicketDetails(i);
+                                myTickets.push(ticketDetails);
+                            }
+                        } catch (error) {
+                            console.warn('Ticket', i, 'query failed:', error.message);
+                        }
+                    }
+                    
+                    console.log('📋 Found', myTickets.length, 'of my tickets');
+                    
+                    if (myTickets.length === 0) {
+                        this.displayNoTickets();
+                    } else {
+                        this.displayTickets(myTickets);
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Iteration query failed:', error);
+                    throw error;
+                }
+            }
+            
+            async getTicketDetails(ticketId) {
+                try {
+                    const [ticket, hasClaimed] = await Promise.all([
+                        this.contract.getTicket(ticketId),
+                        this.contract.hasClaimed(ticketId)
+                    ]);
+                    
+                    // Get draw status
+                    const hasDrawn = await this.contract.hasDrawn();
+                    
+                    return {
+                        id: ticketId,
+                        player: ticket.player,
+                        purchaseTime: ticket.purchaseTime.toNumber(),
+                        numbers: ticket.numbers,
+                        hasClaimed: hasClaimed,
+                        hasDrawn: hasDrawn,
+                        exists: ticket.exists
+                    };
+                } catch (error) {
+                    console.error('Failed to get ticket details:', error);
+                    throw error;
+                }
+            }
+            
+            displayNoTickets() {
+                const ticketsList = document.getElementById('ticketsList');
+                ticketsList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-ticket-alt"></i>
+                        <p>You haven't purchased any tickets yet</p>
+                    </div>
+                `;
+            }
+            
+            displayTickets(tickets) {
+                const ticketsList = document.getElementById('ticketsList');
+                
+                if (tickets.length === 0) {
+                    this.displayNoTickets();
+                    return;
+                }
+                
+                let html = '';
+                
+                tickets.forEach(ticket => {
+                    const purchaseDate = new Date(ticket.purchaseTime * 1000).toLocaleString();
+                    
+                    let statusClass = 'pending';
+                    let statusText = 'Waiting for draw';
+                    
+                    if (ticket.hasDrawn) {
+                        if (ticket.hasClaimed) {
+                            statusClass = 'claimed';
+                            statusText = 'Prize claimed';
+                        } else {
+                            statusClass = 'unclaimed';
+                            statusText = 'Check result';
+                        }
+                    }
+                    
+                    html += `
+                        <div class="ticket-item">
+                            <div class="ticket-header">
+                                <span class="ticket-id">Ticket #${ticket.id}</span>
+                                <span class="ticket-status ${statusClass}">${statusText}</span>
+                            </div>
+                            <div class="ticket-info">
+                                <p>Purchase time: ${purchaseDate}</p>
+                                <p>Numbers: <span style="color: #999;">Encrypted (privacy protected)</span></p>
+                            </div>
+                            <div class="ticket-actions">
+                                ${ticket.hasDrawn && !ticket.hasClaimed ? 
+                                    `<button class="action-btn check" onclick="app.checkAndDecryptTicket(${ticket.id})">
+                                        <i class="fas fa-search"></i> Check Prize
+                                    </button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                ticketsList.innerHTML = html;
+            }
+            
+            async checkAndDecryptTicket(ticketId) {
+                try {
+                    this.showLoading('Checking prize status...');
+                    
+                    // First call checkTicket to calculate prize level
+                    console.log('🔍 Checking ticket', ticketId);
+                    const checkTx = await this.contract.checkTicket(ticketId);
+                    await checkTx.wait();
+                    
+                    // Get encrypted prize level
+                    const encryptedPrizeLevel = await this.contract.getTicketPrizeLevel(ticketId);
+                    
+                    console.log('🔐 Encrypted prize level:', encryptedPrizeLevel);
+                    
+                    // Decrypt prize level
+                    const prizeLevel = await this.decryptPrizeLevel(encryptedPrizeLevel);
+                    
+                    console.log('🎉 Decrypted prize level:', prizeLevel);
+                    
+                    // Display result
+                    this.showPrizeResult(ticketId, prizeLevel);
+                    
+                } catch (error) {
+                    console.error('❌ Prize check failed:', error);
+                    this.showNotification('Check failed: ' + error.message, 'error');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+            
+            async decryptPrizeLevel(encryptedHandle) {
+                try {
+                    console.log('🔐 Starting prize level decryption...');
+                    
+                    // Generate keypair
+                    const keypair = this.fhevmInstance.generateKeypair();
+                    
+                    // Create EIP712 signature
+                    const startTimeStamp = Math.floor(Date.now() / 1000).toString();
+                    const durationDays = '10';
+                    const contractAddresses = [this.contractAddress];
+                    
+                    const eip712 = this.fhevmInstance.createEIP712(
+                        keypair.publicKey,
+                        contractAddresses,
+                        startTimeStamp,
+                        durationDays
+                    );
+                    
+                    // Sign
+                    const signature = await this.signer.signTypedData(
+                        eip712.domain,
+                        { UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification },
+                        eip712.message
+                    );
+                    
+                    // Decrypt
+                    const handleContractPairs = [{
+                        handle: encryptedHandle,
+                        contractAddress: this.contractAddress
+                    }];
+                    
+                    const result = await this.fhevmInstance.userDecrypt(
+                        handleContractPairs,
+                        keypair.privateKey,
+                        keypair.publicKey,
+                        signature.replace('0x', ''),
+                        contractAddresses,
+                        this.account,
+                        startTimeStamp,
+                        durationDays
+                    );
+                    
+                    const decryptedValue = result[encryptedHandle];
+                    console.log('✅ Decryption successful:', decryptedValue);
+                    
+                    return parseInt(decryptedValue);
+                    
+                } catch (error) {
+                    console.error('❌ Decryption failed:', error);
+                    throw error;
+                }
+            }
+            
+            showPrizeResult(ticketId, prizeLevel) {
+                const prizeNames = ['No prize', 'Ninth prize', 'Eighth prize', 'Seventh prize', 'Sixth prize', 
+                                   'Fifth prize', 'Fourth prize', 'Third prize', 'Second prize', 'First prize'];
+                const prizeName = prizeNames[prizeLevel] || 'Unknown';
+                
+                if (prizeLevel === 0) {
+                    this.showNotification(`Ticket #${ticketId}: No prize`, 'info');
+                } else {
+                    this.showNotification(`🎉 Ticket #${ticketId}: Congratulations! You won ${prizeName}!`, 'success');
+                }
+                
+                // Refresh ticket list
+                this.loadMyTickets();
+            }
+            
+            showLoading(text = 'Processing...') {
+                const overlay = document.getElementById('loadingOverlay');
+                const loadingText = document.getElementById('loadingText');
+                loadingText.textContent = text;
+                overlay.classList.add('show');
+            }
+            
+            hideLoading() {
+                const overlay = document.getElementById('loadingOverlay');
+                overlay.classList.remove('show');
+            }
+            
+            showNotification(message, type = 'info') {
+                const notification = document.getElementById('notification');
+                const notificationText = document.getElementById('notificationText');
+                
+                notificationText.textContent = message;
+                notification.className = `notification ${type}`;
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+        }
+        
+        // Initialize application
+        let app;
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎲 FHEVM Lottery Application starting...');
+            app = new FHEVMLottery();
+            window.app = app; // For debugging
+        });
+    </script>
+</body>
+</html>
