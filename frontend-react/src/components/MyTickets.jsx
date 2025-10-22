@@ -31,7 +31,7 @@ const MyTickets = ({ account, contract, fhevmInstance, showLoading, hideLoading,
       // Limit to last 2 days (approximately 14,400 blocks on Sepolia, 12s per block)
       const currentBlock = await contract.runner.provider.getBlockNumber();
       const blocksPerDay = 7200; // 12s per block * 60 * 60 * 24 / 12
-      const fromBlock = currentBlock - (blocksPerDay * 2); // Last 2 days
+      const fromBlock = currentBlock - (blocksPerDay * 14); // Last 2 days
       
       console.log(`📊 Querying from block ${fromBlock} to ${currentBlock}`);
       
@@ -39,6 +39,20 @@ const MyTickets = ({ account, contract, fhevmInstance, showLoading, hideLoading,
       const events = await contract.queryFilter(filter, fromBlock, 'latest');
 
       console.log('📋 Found', events.length, 'tickets');
+      
+      // 检查是否有重复的事件
+      const eventTicketIds = events.map(event => {
+        const parsed = contract.interface.parseLog(event);
+        return parsed.args.ticketId.toString();
+      });
+      const uniqueEventIds = [...new Set(eventTicketIds)];
+      if (eventTicketIds.length !== uniqueEventIds.length) {
+        console.warn('⚠️ Found duplicate events:', {
+          total: eventTicketIds.length,
+          unique: uniqueEventIds.length,
+          duplicates: eventTicketIds.length - uniqueEventIds.length
+        });
+      }
 
       if (events.length === 0) {
         setTickets([]);
@@ -69,7 +83,21 @@ const MyTickets = ({ account, contract, fhevmInstance, showLoading, hideLoading,
       });
 
       const ticketDetails = await Promise.all(ticketPromises);
-      setTickets(ticketDetails.reverse()); // Show newest first
+      
+      // 去重：基于ticket ID去重，保留最新的
+      const uniqueTickets = ticketDetails.reduce((acc, ticket) => {
+        const existing = acc.find(t => t.id === ticket.id);
+        if (!existing || ticket.purchaseTime > existing.purchaseTime) {
+          // 移除旧的，添加新的
+          acc = acc.filter(t => t.id !== ticket.id);
+          acc.push(ticket);
+        }
+        return acc;
+      }, []);
+      
+      // 按购买时间排序，最新的在前
+      const sortedTickets = uniqueTickets.sort((a, b) => b.purchaseTime - a.purchaseTime);
+      setTickets(sortedTickets);
       
       hideLoading();
       setLoading(false);
@@ -296,11 +324,11 @@ const MyTickets = ({ account, contract, fhevmInstance, showLoading, hideLoading,
                   
                   <div className="flex items-center gap-3 flex-wrap">
                     {savedNumbers.mainNumbers.map((num, idx) => (
-                      <LotteryBall key={`main-${idx}`} number={num} type="main" />
+                      <LotteryBall key={`${ticket.id}-main-${idx}`} number={num} type="main" />
                     ))}
                     <span className="text-3xl font-bold text-white/80">+</span>
                     {savedNumbers.bonusNumbers.map((num, idx) => (
-                      <LotteryBall key={`bonus-${idx}`} number={num} type="bonus" />
+                      <LotteryBall key={`${ticket.id}-bonus-${idx}`} number={num} type="bonus" />
                     ))}
                   </div>
                   

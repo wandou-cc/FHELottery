@@ -15,12 +15,20 @@ import { useWallet } from './hooks/useWallet';
 
 function App() {
   const { account, connectWallet, disconnectWallet, balance } = useWallet();
-  const { fhevmInstance, initializeFHEVM } = useFHEVM();
+  const { fhevmInstance, initializeFHEVM, resetFHEVM } = useFHEVM();
   const { contract, contractStatus, updateStatus } = useContract(account);
   
   const [loading, setLoading] = useState({ show: false, message: '' });
   const [notification, setNotification] = useState({ show: false, message: '', type: 'info' });
   const [selectedTab, setSelectedTab] = useState('overview');
+
+  // 处理断开连接
+  const handleDisconnect = () => {
+    disconnectWallet();
+    resetFHEVM();
+    setSelectedTab('overview'); // 重置到首页
+    showNotification('钱包已断开连接', 'info');
+  };
 
   // Initialize FHEVM SDK when wallet is connected
   useEffect(() => {
@@ -62,7 +70,7 @@ function App() {
         account={account}
         balance={balance}
         onConnect={connectWallet}
-        onDisconnect={disconnectWallet}
+        onDisconnect={handleDisconnect}
       />
 
       <main className="relative z-10 container mx-auto px-4 py-8 max-w-7xl">
@@ -253,7 +261,36 @@ function App() {
 
         {/* Footer */}
         <div className="mt-12 text-center text-white/60 text-sm animate-fadeIn">
-          <p>Built with ❤️ using Zama FHEVM | Sepolia Testnet</p>
+          <p className="mb-3">Built with ❤️ using Zama FHEVM | Sepolia Testnet</p>
+          
+          {/* Social Links */}
+          <div className="flex justify-center items-center gap-6">
+            <a 
+              href="https://x.com/coinhasben" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              <span>@coinhasben</span>
+            </a>
+            
+            <span className="text-white/40">•</span>
+            
+            <a 
+              href="https://x.com/zama_fhe" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              <span>@zama_fhe</span>
+            </a>
+          </div>
         </div>
       </main>
 

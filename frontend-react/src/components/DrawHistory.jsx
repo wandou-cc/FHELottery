@@ -21,7 +21,7 @@ const DrawHistory = ({ contract, fhevmInstance, showLoading, hideLoading, showNo
       // Limit to last 2 days (approximately 14,400 blocks on Sepolia, 12s per block)
       const currentBlock = await contract.runner.provider.getBlockNumber();
       const blocksPerDay = 7200; // 12s per block * 60 * 60 * 24 / 12
-      const fromBlock = currentBlock - (blocksPerDay * 2); // Last 2 days
+      const fromBlock = currentBlock - (blocksPerDay * 14); // Last 2 days
       
       console.log(`📊 Querying draw history from block ${fromBlock} to ${currentBlock}`);
       

@@ -19,6 +19,9 @@ export const useContract = (account) => {
       provider.getSigner().then(signer => {
         const contractInstance = new Contract(CONTRACT_ADDRESS, contractABI, signer);
         setContract(contractInstance);
+      }).catch(error => {
+        console.error('Failed to create contract instance:', error);
+        setContract(null);
       });
     } else {
       setContract(null);
@@ -29,6 +32,13 @@ export const useContract = (account) => {
     if (!contract) return;
 
     try {
+      // 首先检查合约是否存在
+      const code = await contract.runner.provider.getCode(CONTRACT_ADDRESS);
+      if (code === '0x') {
+        console.error('Contract not found at address:', CONTRACT_ADDRESS);
+        return;
+      }
+
       const [isBuyingOpen, hasDrawn, currentTicketId, totalPrizePool] = await Promise.all([
         contract.isBuyingOpen(),
         contract.hasDrawn(),
@@ -44,6 +54,16 @@ export const useContract = (account) => {
       });
     } catch (error) {
       console.error('Failed to update contract status:', error);
+      // 如果是合约不存在或网络错误，重置状态
+      if (error.code === 'BAD_DATA' || error.message.includes('could not decode')) {
+        console.error('Contract may not be deployed or wrong network');
+        setContractStatus({
+          isBuyingOpen: false,
+          hasDrawn: false,
+          currentTicketId: 0,
+          prizePool: '0'
+        });
+      }
     }
   }, [contract]);
 

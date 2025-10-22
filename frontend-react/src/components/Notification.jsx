@@ -68,19 +68,6 @@ const Notification = ({ message, type = 'info', onClose }) => {
         </CardBody>
       </Card>
       
-      <style jsx>{`
-        @keyframes shrink {
-          from {
-            width: 100%;
-          }
-          to {
-            width: 0%;
-          }
-        }
-        .animate-shrink {
-          animation: shrink 5s linear forwards;
-        }
-      `}</style>
     </div>
   );
 };
