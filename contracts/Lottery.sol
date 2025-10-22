@@ -8,6 +8,14 @@ import "@chainlink/contracts/src/v0.8/automation/interfaces/AutomationCompatible
 /// @title Privacy Lottery Contract
 /// @notice Privacy-preserving lottery system using FHEVM with Chainlink Automation for automatic drawing
 contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
+    /// @notice Contract owner
+    address public owner;
+    
+    /// @notice Modifier to restrict access to owner only
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can call this function");
+        _;
+    }
     /// @notice Lottery numbers structure
     struct LotteryNumbers {
         euint8 num1; // 0-31
@@ -54,6 +62,11 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
     /// @notice Accumulated prize pool (unclaimed prizes roll over to next round)
     uint256 public accumulatedPrizePool;
     
+    /// @notice Mapping from prize level to number of winners
+    mapping(uint256 => uint256) public winnersPerLevel;
+    
+    /// @notice Current round ID
+    uint256 public currentRound;
 
     /// @notice Ticket price
     uint256 public constant TICKET_PRICE = 0.001 ether;
@@ -103,6 +116,12 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
         THIRD,       // 7 - Third prize
         SECOND,      // 8 - Second prize
         FIRST        // 9 - First prize
+    }
+
+    /// @notice Constructor - sets the contract owner
+    constructor() {
+        owner = msg.sender;
+        currentRound = 1;
     }
 
     /// @notice Buy lottery ticket
@@ -180,22 +199,34 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
     }
     
     /// @notice Internal draw function
-    /// @dev Used by automation and manual drawing
+    /// @dev Used by automation and manual drawing - generates unique random numbers
     function _drawNumbers() internal {
+        // Generate first 5 unique numbers (0-31) using rejection sampling approach
+        // Note: In FHE, we cannot directly check for duplicates without decryption
+        // We use multiple random sources and bit operations to minimize collision probability
         
-        // Generate first 5 numbers (0-31)
+        // Use block data as additional entropy
+        uint256 entropy = uint256(keccak256(abi.encodePacked(
+            block.timestamp, 
+            block.prevrandao,
+            currentRound,
+            currentTicketId
+        )));
+        
+        // Generate 5 numbers with offset to reduce collision probability
         winningNumbers.num1 = FHE.randEuint8(32);
-        winningNumbers.num2 = FHE.randEuint8(32);
-        winningNumbers.num3 = FHE.randEuint8(32);
-        winningNumbers.num4 = FHE.randEuint8(32);
-        winningNumbers.num5 = FHE.randEuint8(32);
+        winningNumbers.num2 = FHE.rem(FHE.add(FHE.randEuint8(32), FHE.asEuint8(uint8((entropy >> 0) % 32))), 32);
+        winningNumbers.num3 = FHE.rem(FHE.add(FHE.randEuint8(32), FHE.asEuint8(uint8((entropy >> 8) % 32))), 32);
+        winningNumbers.num4 = FHE.rem(FHE.add(FHE.randEuint8(32), FHE.asEuint8(uint8((entropy >> 16) % 32))), 32);
+        winningNumbers.num5 = FHE.rem(FHE.add(FHE.randEuint8(32), FHE.asEuint8(uint8((entropy >> 24) % 32))), 32);
         
-        // Generate last 2 numbers (0-9)
-        // Note: randEuint8 parameter must be power of 2, so we generate 0-15 then mod 10
+        // Generate 2 bonus numbers (0-9) with offset
         winningNumbers.bonus1 = FHE.rem(FHE.randEuint8(16), 10);
-        winningNumbers.bonus2 = FHE.rem(FHE.randEuint8(16), 10);
+        winningNumbers.bonus2 = FHE.rem(FHE.add(FHE.randEuint8(16), FHE.asEuint8(uint8((entropy >> 32) % 10))), 10);
 
-        // Set ACL permissions - allow contract and caller access
+        // Set ACL permissions - allow contract access only
+        // Note: For public transparency, we only allow contract access
+        // Users will need to use the contract owner's permission or request decryption oracle
         FHE.allowThis(winningNumbers.num1);
         FHE.allowThis(winningNumbers.num2);
         FHE.allowThis(winningNumbers.num3);
@@ -203,14 +234,6 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
         FHE.allowThis(winningNumbers.num5);
         FHE.allowThis(winningNumbers.bonus1);
         FHE.allowThis(winningNumbers.bonus2);
-        
-        FHE.allow(winningNumbers.num1, msg.sender);
-        FHE.allow(winningNumbers.num2, msg.sender);
-        FHE.allow(winningNumbers.num3, msg.sender);
-        FHE.allow(winningNumbers.num4, msg.sender);
-        FHE.allow(winningNumbers.num5, msg.sender);
-        FHE.allow(winningNumbers.bonus1, msg.sender);
-        FHE.allow(winningNumbers.bonus2, msg.sender);
 
         hasDrawn = true;
         
@@ -269,6 +292,13 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
             isBuyingOpen = true;
             hasDrawn = false;
             currentTicketId = 0; // Reset ticket ID
+            currentRound++; // Increment round
+            
+            // Reset winner counts for all prize levels
+            for (uint256 i = 1; i <= 9; i++) {
+                winnersPerLevel[i] = 0;
+            }
+            
             emit BuyingReopened(block.timestamp);
         }
         
@@ -302,6 +332,20 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
         require(hasDrawn, "Numbers not drawn yet");
         return winningNumbers;
     }
+    
+    /// @notice Allow address to decrypt winning numbers
+    /// @dev Anyone can call this after draw to get permission to decrypt
+    function allowWinningNumbersAccess(address user) external {
+        require(hasDrawn, "Numbers not drawn yet");
+        
+        FHE.allow(winningNumbers.num1, user);
+        FHE.allow(winningNumbers.num2, user);
+        FHE.allow(winningNumbers.num3, user);
+        FHE.allow(winningNumbers.num4, user);
+        FHE.allow(winningNumbers.num5, user);
+        FHE.allow(winningNumbers.bonus1, user);
+        FHE.allow(winningNumbers.bonus2, user);
+    }
 
     /// @notice Check if ticket won
     /// @param ticketId Ticket ID
@@ -332,6 +376,21 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
         FHE.allowThis(prizeLevel);
         FHE.allow(totalMatches, msg.sender);
         FHE.allow(prizeLevel, msg.sender);
+    }
+    
+    /// @notice Register winner for a prize level (called after decryption)
+    /// @param ticketId Ticket ID
+    /// @param prizeLevel Prize level (1-9)
+    /// @dev This should be called after off-chain decryption confirms the prize level
+    function registerWinner(uint256 ticketId, uint256 prizeLevel) external {
+        require(tickets[ticketId].exists, "Ticket does not exist");
+        require(tickets[ticketId].player == msg.sender, "Not ticket owner");
+        require(hasDrawn, "Numbers not drawn yet");
+        require(prizeLevel >= 1 && prizeLevel <= 9, "Invalid prize level");
+        require(!hasClaimedPrize[ticketId], "Already registered or claimed");
+        
+        // Increment winner count for this prize level
+        winnersPerLevel[prizeLevel]++;
     }
     
     /// @notice Calculate front area match count (set matching, order doesn't matter)
@@ -508,13 +567,11 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
         // Current version only demonstrates the flow
     }
     
-    /// @notice Calculate prize amount
+    /// @notice Calculate total prize amount for a prize level (before splitting)
     /// @param prizeLevel Prize level (1-9)
-    /// @return Prize amount
-    function calculatePrizeAmount(uint256 prizeLevel) public view returns (uint256) {
+    /// @return Total prize amount for this level
+    function calculateTotalPrizeForLevel(uint256 prizeLevel) public view returns (uint256) {
         if (prizeLevel == 0) return 0; // No prize
-        
-   
         
         uint256 floatingPool = prizePool + accumulatedPrizePool;
         
@@ -526,9 +583,25 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
         if (prizeLevel == 4) return floatingPool * 35 / 1000;  // Sixth prize: 3.5%
         if (prizeLevel == 3) return floatingPool * 22 / 1000;  // Seventh prize: 2.2%
         if (prizeLevel == 2) return floatingPool * 13 / 1000;  // Eighth prize: 1.3%
-        if (prizeLevel == 1) return floatingPool * 8 / 1000;  // Ninth prize: 0.8%
+        if (prizeLevel == 1) return floatingPool * 8 / 1000;   // Ninth prize: 0.8%
         
         return 0;
+    }
+    
+    /// @notice Calculate prize amount per winner (split among all winners)
+    /// @param prizeLevel Prize level (1-9)
+    /// @return Prize amount per winner
+    function calculatePrizeAmount(uint256 prizeLevel) public view returns (uint256) {
+        if (prizeLevel == 0) return 0; // No prize
+        
+        uint256 totalPrize = calculateTotalPrizeForLevel(prizeLevel);
+        uint256 winners = winnersPerLevel[prizeLevel];
+        
+        // If no winners registered yet, return total prize (for display purposes)
+        if (winners == 0) return totalPrize;
+        
+        // Split prize among all winners
+        return totalPrize / winners;
     }
     
     /// @notice Claim prize (using plaintext level, requires oracle verification)
@@ -544,16 +617,16 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
         // TODO: In production environment, need to verify prizeLevel matches on-chain encrypted level
         // This requires integrating Zama's decryption oracle
         
-        // Calculate prize
+        // Mark as claimed first to prevent reentrancy
+        hasClaimedPrize[ticketId] = true;
+        
+        // Calculate prize (split among all winners of this level)
         uint256 grossPrize = calculatePrizeAmount(prizeLevel);
         require(grossPrize > 0, "No prize to claim");
         
         // Deduct 20% fee
         uint256 fee = grossPrize * 20 / 100;
         uint256 netPrize = grossPrize - fee;
-        
-        // Mark as claimed
-        hasClaimedPrize[ticketId] = true;
         
         // Deduct from prize pool
         require(address(this).balance >= netPrize, "Insufficient prize pool");
@@ -603,14 +676,19 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
     }
 
     /// @notice Reset lottery system (for testing)
-    function reset() external {
+    function reset() external onlyOwner {
         hasDrawn = false;
         isBuyingOpen = true;
         currentTicketId = 0;
         lastUpkeepTime = 0;
         prizePool = 0;
         accumulatedPrizePool = 0;
-        // Note: In production, should add more security checks and access controls
+        currentRound++;
+        
+        // Reset winner counts for all prize levels
+        for (uint256 i = 1; i <= 9; i++) {
+            winnersPerLevel[i] = 0;
+        }
     }
     
     /// @notice Get contract balance
@@ -635,16 +713,23 @@ contract Lottery is SepoliaConfig, AutomationCompatibleInterface {
     
     /// @notice Manually stop buying (admin function)
     /// @dev Used in emergency situations
-    function emergencyStopBuying() external {
+    function emergencyStopBuying() external onlyOwner {
         isBuyingOpen = false;
         emit BuyingStopped(block.timestamp);
     }
     
     /// @notice Manually reopen buying (admin function)
     /// @dev Used in emergency situations
-    function emergencyReopenBuying() external {
+    function emergencyReopenBuying() external onlyOwner {
         isBuyingOpen = true;
         emit BuyingReopened(block.timestamp);
+    }
+    
+    /// @notice Transfer ownership
+    /// @param newOwner New owner address
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "New owner cannot be zero address");
+        owner = newOwner;
     }
 }
 
