@@ -49,9 +49,25 @@ const GameRules = () => {
       <Section title="Drawing & Verification">
         <ul className="list-disc pl-5 space-y-1">
           <li>The winning set contains 5 main numbers (0–31) and 2 bonus numbers (0–9).</li>
+          <li>Draws are conducted automatically using Chainlink Automation's AutomationCompatibleInterface.</li>
+          <li>The system runs periodic checks to trigger draws at scheduled intervals.</li>
           <li>After the draw, your ticket is checked homomorphically against the winning set.</li>
-          <li>Use “My Tickets → Check Prize Status” to decrypt your prize tier locally and privately.</li>
+          <li>Use "My Tickets → Check Prize Status" to decrypt your prize tier locally and privately.</li>
         </ul>
+      </Section>
+
+      <Section title="Automated Drawing System">
+        <p className="mb-2">The lottery uses Chainlink Automation for reliable, decentralized drawing:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li><strong>AutomationCompatibleInterface</strong>: Implements Chainlink's automation standard for reliable execution.</li>
+          <li><strong>Scheduled Draws</strong>: The system automatically triggers draws at predetermined intervals.</li>
+          <li><strong>Decentralized Execution</strong>: No single entity controls when draws occur - it's fully automated.</li>
+          <li><strong>Gas Optimization</strong>: Automation nodes handle gas costs, ensuring draws happen even during network congestion.</li>
+          <li><strong>Transparency</strong>: All draw triggers and results are recorded on-chain for public verification.</li>
+        </ul>
+        <p className="mt-2 text-xs text-black/60">
+          The automation system ensures fair and timely draws without requiring manual intervention or centralized control.
+        </p>
       </Section>
 
       <Section title="Winning Tiers">
