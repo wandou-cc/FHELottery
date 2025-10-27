@@ -1,17 +1,17 @@
 import React from 'react';
 import { Card, CardBody, Chip } from '@heroui/react';
 
-const StatusCards = ({ status }) => {
+const StatusCards = ({ status, isWalletConnected = false }) => {
   const cards = [
     {
       title: 'Prize Pool',
       value: `${parseFloat(status.prizePool).toFixed(4)} ETH`,
-      subtitle: 'Total rewards',
+      subtitle: isWalletConnected ? 'Total rewards' : 'Public data',
       icon: '💰',
       gradient: 'from-amber-400 to-yellow-600',
       bgGradient: 'from-amber-300/30 to-yellow-500/30',
       chipColor: 'warning',
-      chipText: 'Active'
+      chipText: isWalletConnected ? 'Active' : 'Public'
     },
     {
       title: 'Draw Status',

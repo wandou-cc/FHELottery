@@ -16,7 +16,7 @@ import { useWallet } from './hooks/useWallet';
 function App() {
   const { account, connectWallet, disconnectWallet, balance } = useWallet();
   const { fhevmInstance, initializeFHEVM, resetFHEVM } = useFHEVM();
-  const { contract, contractStatus, updateStatus } = useContract(account);
+  const { contract, contractStatus, updateStatus, updateStatusForPublic, isWalletConnected } = useContract(account);
   
   const [loading, setLoading] = useState({ show: false, message: '' });
   const [notification, setNotification] = useState({ show: false, message: '', type: 'info' });
@@ -40,11 +40,14 @@ function App() {
   // Update contract status periodically
   useEffect(() => {
     if (contract) {
-      updateStatus();
-      const interval = setInterval(updateStatus, 30000);
+      // 根据钱包连接状态选择不同的更新函数
+      const statusUpdateFn = isWalletConnected ? updateStatus : updateStatusForPublic;
+
+      statusUpdateFn();
+      const interval = setInterval(statusUpdateFn, 30000);
       return () => clearInterval(interval);
     }
-  }, [contract, updateStatus]);
+  }, [contract, updateStatus, updateStatusForPublic, isWalletConnected]);
 
   const showLoading = (message) => {
     setLoading({ show: true, message });
@@ -85,7 +88,7 @@ function App() {
 
         {/* Status Cards */}
         <div className="mb-8 animate-slideInRight">
-          <StatusCards status={contractStatus} />
+          <StatusCards status={contractStatus} isWalletConnected={isWalletConnected} />
         </div>
 
         {/* Main Content with Tabs */}
@@ -186,18 +189,43 @@ function App() {
                     <span>Buy Tickets</span>
                   </div>
                 }
+                isDisabled={!isWalletConnected}
               >
                 <div className="py-6">
-                  <BuyTicket
-                    account={account}
-                    contract={contract}
-                    fhevmInstance={fhevmInstance}
-                    contractStatus={contractStatus}
-                    showLoading={showLoading}
-                    hideLoading={hideLoading}
-                    showNotification={showNotification}
-                    onPurchaseComplete={updateStatus}
-                  />
+                  {isWalletConnected ? (
+                    <BuyTicket
+                      account={account}
+                      contract={contract}
+                      fhevmInstance={fhevmInstance}
+                      contractStatus={contractStatus}
+                      showLoading={showLoading}
+                      hideLoading={hideLoading}
+                      showNotification={showNotification}
+                      onPurchaseComplete={updateStatus}
+                    />
+                  ) : (
+                    <Card className="card-flat">
+                      <CardBody className="p-6 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 rounded-full bg-black/10 flex items-center justify-center">
+                            <FiShoppingCart className="w-8 h-8 text-black/50" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-semibold text-black mb-2">Connect Wallet Required</h3>
+                            <p className="text-black/70 mb-4">
+                              You need to connect your wallet to purchase lottery tickets.
+                            </p>
+                            <button
+                              className="btn-black px-6 py-2"
+                              onClick={connectWallet}
+                            >
+                              Connect Wallet
+                            </button>
+                          </div>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  )}
                 </div>
               </Tab>
 
@@ -209,16 +237,41 @@ function App() {
                     <span>My Tickets</span>
                   </div>
                 }
+                isDisabled={!isWalletConnected}
               >
                 <div className="py-6">
-                  <MyTickets
-                    account={account}
-                    contract={contract}
-                    fhevmInstance={fhevmInstance}
-                    showLoading={showLoading}
-                    hideLoading={hideLoading}
-                    showNotification={showNotification}
-                  />
+                  {isWalletConnected ? (
+                    <MyTickets
+                      account={account}
+                      contract={contract}
+                      fhevmInstance={fhevmInstance}
+                      showLoading={showLoading}
+                      hideLoading={hideLoading}
+                      showNotification={showNotification}
+                    />
+                  ) : (
+                    <Card className="card-flat">
+                      <CardBody className="p-6 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 rounded-full bg-black/10 flex items-center justify-center">
+                            <FiTag className="w-8 h-8 text-black/50" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-semibold text-black mb-2">Connect Wallet Required</h3>
+                            <p className="text-black/70 mb-4">
+                              You need to connect your wallet to view your lottery tickets.
+                            </p>
+                            <button
+                              className="btn-black px-6 py-2"
+                              onClick={connectWallet}
+                            >
+                              Connect Wallet
+                            </button>
+                          </div>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  )}
                 </div>
               </Tab>
 

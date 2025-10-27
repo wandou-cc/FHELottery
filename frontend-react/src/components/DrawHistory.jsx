@@ -9,7 +9,7 @@ const DrawHistory = ({ contract, fhevmInstance, showLoading, hideLoading, showNo
 
   const loadDrawHistory = async () => {
     if (!contract) {
-      showNotification('Please connect your wallet first', 'error');
+      showNotification('Contract not available', 'error');
       return;
     }
 
@@ -63,7 +63,7 @@ const DrawHistory = ({ contract, fhevmInstance, showLoading, hideLoading, showNo
 
   const decryptWinningNumbers = async (blockNumber) => {
     if (!fhevmInstance) {
-      showNotification('FHEVM not initialized', 'error');
+      showNotification('Connect wallet to decrypt winning numbers', 'warning');
       return;
     }
 
