@@ -1,92 +1,94 @@
-import React, { useState, useEffect } from 'react';
-import { parseEther } from 'ethers';
-import { Button, Card, CardHeader, CardBody, Chip, Divider } from '@heroui/react';
-import { FiZap, FiRotateCcw, FiCheck, FiShoppingCart } from 'react-icons/fi';
+import React, { useState, useEffect } from "react";
+import { parseEther } from "ethers";
+import { Button, Card, CardHeader, CardBody, Chip, Divider } from "@heroui/react";
+import { FiZap, FiRotateCcw, FiCheck, FiShoppingCart } from "react-icons/fi";
 
-const BuyTicket = ({ 
-  account, 
-  contract, 
-  fhevmInstance, 
+const BuyTicket = ({
+  account,
+  contract,
+  fhevmInstance,
   contractStatus,
-  showLoading, 
-  hideLoading, 
+  showLoading,
+  hideLoading,
   showNotification,
-  onPurchaseComplete 
+  onPurchaseComplete,
 }) => {
   const [mainNumbers, setMainNumbers] = useState([]);
   const [bonusNumbers, setBonusNumbers] = useState([]);
+  const [isPurchasing, setIsPurchasing] = useState(false);
 
   const toggleMainNumber = (num) => {
     if (mainNumbers.includes(num)) {
-      setMainNumbers(mainNumbers.filter(n => n !== num));
+      setMainNumbers(mainNumbers.filter((n) => n !== num));
     } else if (mainNumbers.length < 5) {
       setMainNumbers([...mainNumbers, num].sort((a, b) => a - b));
     } else {
-      showNotification('You can only select 5 main numbers', 'warning');
+      showNotification("You can only select 5 main numbers", "warning");
     }
   };
 
   const toggleBonusNumber = (num) => {
     if (bonusNumbers.includes(num)) {
-      setBonusNumbers(bonusNumbers.filter(n => n !== num));
+      setBonusNumbers(bonusNumbers.filter((n) => n !== num));
     } else if (bonusNumbers.length < 2) {
       setBonusNumbers([...bonusNumbers, num].sort((a, b) => a - b));
     } else {
-      showNotification('You can only select 2 bonus numbers', 'warning');
+      showNotification("You can only select 2 bonus numbers", "warning");
     }
   };
 
   const encryptNumbers = async () => {
     if (!fhevmInstance) {
-      throw new Error('FHEVM instance not initialized');
+      throw new Error("FHEVM instance not initialized");
     }
 
     const allNumbers = [...mainNumbers, ...bonusNumbers];
-    console.log('🔐 Encrypting numbers:', allNumbers);
+    console.log("🔐 Encrypting numbers:", allNumbers);
 
     // Create encrypted input buffer
     const buffer = fhevmInstance.createEncryptedInput(
       contract.target, // Contract address (ethers v6)
-      account          // User address
+      account, // User address
     );
 
     // Add 7 euint8 numbers
-    allNumbers.forEach(num => buffer.add8(BigInt(num)));
+    allNumbers.forEach((num) => buffer.add8(BigInt(num)));
 
     // Encrypt and upload to relayer
-    console.log('🔐 Encrypting and uploading to relayer...');
+    console.log("🔐 Encrypting and uploading to relayer...");
     const encryptedData = await buffer.encrypt();
 
-    console.log('✅ Encryption successful');
-    console.log('Handles:', encryptedData.handles);
-    console.log('InputProof length:', encryptedData.inputProof.length);
+    console.log("✅ Encryption successful");
+    console.log("Handles:", encryptedData.handles);
+    console.log("InputProof length:", encryptedData.inputProof.length);
 
     return encryptedData;
   };
 
   const handlePurchase = async () => {
     if (!account) {
-      showNotification('Please connect your wallet first', 'error');
+      showNotification("Please connect your wallet first", "error");
       return;
     }
 
     if (!fhevmInstance) {
-      showNotification('FHEVM not initialized. Please wait...', 'error');
+      showNotification("FHEVM not initialized. Please wait...", "error");
       return;
     }
 
     if (mainNumbers.length !== 5 || bonusNumbers.length !== 2) {
-      showNotification('Please select 5 main numbers and 2 bonus numbers', 'warning');
+      showNotification("Please select 5 main numbers and 2 bonus numbers", "warning");
       return;
     }
 
     try {
-      showLoading('Encrypting your lottery numbers...');
+      setIsPurchasing(true);
+      showLoading("Encrypting your lottery numbers...");
 
       // Encrypt numbers using FHEVM SDK
       const encryptedData = await encryptNumbers();
 
-      showLoading('Sending purchase transaction...');
+      showLoading("Sending purchase transaction...");
 
       // Call contract to buy ticket
       const tx = await contract.buyTicket(
@@ -98,23 +100,23 @@ const BuyTicket = ({
         encryptedData.handles[5],
         encryptedData.handles[6],
         encryptedData.inputProof,
-        { 
-          value: parseEther('0.001'),
-          gasLimit: 2000000n
-        }
+        {
+          value: parseEther("0.001"),
+          gasLimit: 2000000n,
+        },
       );
 
-      showNotification('Transaction submitted, waiting for confirmation...', 'info');
-      console.log('⏳ Waiting for transaction confirmation...');
+      showNotification("Transaction submitted, waiting for confirmation...", "info");
+      console.log("⏳ Waiting for transaction confirmation...");
 
       const receipt = await tx.wait();
 
       if (receipt.status === 1) {
         // Save plaintext numbers to localStorage
-        const event = receipt.logs.find(log => {
+        const event = receipt.logs.find((log) => {
           try {
             const parsed = contract.interface.parseLog(log);
-            return parsed && parsed.name === 'TicketPurchased';
+            return parsed && parsed.name === "TicketPurchased";
           } catch {
             return false;
           }
@@ -126,8 +128,8 @@ const BuyTicket = ({
           saveTicketNumbers(ticketId, mainNumbers, bonusNumbers, receipt.hash);
         }
 
-        showNotification('🎉 Ticket purchased successfully!', 'success');
-        console.log('✅ Purchase successful, tx hash:', receipt.hash);
+        showNotification("🎉 Ticket purchased successfully!", "success");
+        console.log("✅ Purchase successful, tx hash:", receipt.hash);
 
         // Clear selection
         setMainNumbers([]);
@@ -138,19 +140,20 @@ const BuyTicket = ({
           setTimeout(onPurchaseComplete, 1000);
         }
       } else {
-        showNotification('Transaction failed', 'error');
+        showNotification("Transaction failed", "error");
       }
     } catch (error) {
-      console.error('❌ Purchase failed:', error);
-      
-      if (error.code === 'ACTION_REJECTED') {
-        showNotification('Transaction cancelled', 'warning');
-      } else if (error.message && error.message.includes('execution reverted')) {
-        showNotification('Contract execution failed, buying may be closed', 'error');
+      console.error("❌ Purchase failed:", error);
+
+      if (error.code === "ACTION_REJECTED") {
+        showNotification("Transaction cancelled", "warning");
+      } else if (error.message && error.message.includes("execution reverted")) {
+        showNotification("Contract execution failed, buying may be closed", "error");
       } else {
-        showNotification('Purchase failed: ' + error.message, 'error');
+        showNotification("Purchase failed: " + error.message, "error");
       }
     } finally {
+      setIsPurchasing(false);
       hideLoading();
     }
   };
@@ -158,26 +161,27 @@ const BuyTicket = ({
   const saveTicketNumbers = (ticketId, main, bonus, txHash) => {
     try {
       const storageKey = `lottery_tickets_${account.toLowerCase()}`;
-      const existing = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      const existing = JSON.parse(localStorage.getItem(storageKey) || "{}");
       existing[ticketId] = {
         mainNumbers: main,
         bonusNumbers: bonus,
         purchaseTime: Date.now(),
-        txHash
+        txHash,
       };
       localStorage.setItem(storageKey, JSON.stringify(existing));
-      console.log('✅ Ticket numbers saved locally:', ticketId);
+      console.log("✅ Ticket numbers saved locally:", ticketId);
     } catch (error) {
-      console.error('Failed to save ticket numbers:', error);
+      console.error("Failed to save ticket numbers:", error);
     }
   };
 
-  const canPurchase = mainNumbers.length === 5 && 
-                      bonusNumbers.length === 2 && 
-                      account && 
-                      fhevmInstance &&
-                      contractStatus.isBuyingOpen &&
-                      !contractStatus.hasDrawn;
+  const canPurchase =
+    mainNumbers.length === 5 &&
+    bonusNumbers.length === 2 &&
+    account &&
+    fhevmInstance &&
+    contractStatus.isBuyingOpen &&
+    !contractStatus.hasDrawn;
 
   const handleQuickPick = () => {
     // Generate 5 random main numbers (0-31)
@@ -195,7 +199,7 @@ const BuyTicket = ({
       if (!randomBonus.includes(num)) randomBonus.push(num);
     }
     setBonusNumbers(randomBonus.sort((a, b) => a - b));
-    showNotification('Lucky numbers generated! 🍀', 'success');
+    showNotification("Lucky numbers generated! 🍀", "success");
   };
 
   const handleClearAll = () => {
@@ -245,8 +249,8 @@ const BuyTicket = ({
                 <p className="text-sm text-black/70">Select 5 numbers from 0-31</p>
               </div>
             </div>
-            <Chip 
-              color={mainNumbers.length === 5 ? "success" : "warning"} 
+            <Chip
+              color={mainNumbers.length === 5 ? "success" : "warning"}
               variant="flat"
               size="lg"
               className="font-bold"
@@ -264,9 +268,10 @@ const BuyTicket = ({
                 className={`
                   relative aspect-square rounded-lg font-bold text-base
                   transition-all duration-200 transform
-                  ${mainNumbers.includes(i)
-                    ? 'bg-black text-white scale-105'
-                    : 'bg-black/10 text-black hover:bg-black/20 hover:scale-105'
+                  ${
+                    mainNumbers.includes(i)
+                      ? "bg-black text-white scale-105"
+                      : "bg-black/10 text-black hover:bg-black/20 hover:scale-105"
                   }
                   disabled:opacity-30 disabled:cursor-not-allowed
                 `}
@@ -284,7 +289,7 @@ const BuyTicket = ({
           {mainNumbers.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap p-4 bg-black/5 rounded-xl">
               <span className="text-sm font-semibold text-black">Selected:</span>
-              {mainNumbers.map(num => (
+              {mainNumbers.map((num) => (
                 <div key={num} className="lottery-ball w-12 h-12 text-base">
                   {num}
                 </div>
@@ -305,8 +310,8 @@ const BuyTicket = ({
                 <p className="text-sm text-black/70">Select 2 bonus numbers from 0-9</p>
               </div>
             </div>
-            <Chip 
-              color={bonusNumbers.length === 2 ? "success" : "warning"} 
+            <Chip
+              color={bonusNumbers.length === 2 ? "success" : "warning"}
               variant="flat"
               size="lg"
               className="font-bold"
@@ -324,9 +329,10 @@ const BuyTicket = ({
                 className={`
                   relative aspect-square rounded-lg font-bold text-base
                   transition-all duration-200 transform
-                  ${bonusNumbers.includes(i)
-                    ? 'bg-black text-white scale-105'
-                    : 'bg-black/10 text-black hover:bg-black/20 hover:scale-105'
+                  ${
+                    bonusNumbers.includes(i)
+                      ? "bg-black text-white scale-105"
+                      : "bg-black/10 text-black hover:bg-black/20 hover:scale-105"
                   }
                   disabled:opacity-30 disabled:cursor-not-allowed
                 `}
@@ -344,8 +350,12 @@ const BuyTicket = ({
           {bonusNumbers.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap p-4 bg-black/5 rounded-xl">
               <span className="text-sm font-semibold text-black">Selected:</span>
-              {bonusNumbers.map(num => (
-                <div key={num} className="lottery-ball w-12 h-12 text-base" style={{ background: 'linear-gradient(135deg, #d946ef 0%, #c026d3 100%)' }}>
+              {bonusNumbers.map((num) => (
+                <div
+                  key={num}
+                  className="lottery-ball w-12 h-12 text-base"
+                  style={{ background: "linear-gradient(135deg, #d946ef 0%, #c026d3 100%)" }}
+                >
                   {num}
                 </div>
               ))}
@@ -365,15 +375,16 @@ const BuyTicket = ({
                 <span className="text-2xl text-black/70">ETH</span>
               </div>
             </div>
-            
+
             <Button
               size="md"
-              className={`px-8 py-4 text-base font-bold btn-black ${canPurchase ? '' : 'opacity-60'}`}
-              isDisabled={!canPurchase}
+              className={`px-8 py-4 text-base font-bold btn-black ${canPurchase ? "" : "opacity-60"}`}
+              isDisabled={!canPurchase || isPurchasing}
+              isLoading={isPurchasing}
               onPress={handlePurchase}
-              startContent={<FiShoppingCart className="w-5 h-5" />}
+              startContent={!isPurchasing ? <FiShoppingCart className="w-5 h-5" /> : null}
             >
-              Purchase Ticket
+              {isPurchasing ? "Processing..." : "Purchase Ticket"}
             </Button>
           </div>
 
@@ -400,18 +411,25 @@ const BuyTicket = ({
                   ✅ Draw completed. Waiting for next round...
                 </Chip>
               )}
-              {account && fhevmInstance && contractStatus.isBuyingOpen && !contractStatus.hasDrawn && 
-               mainNumbers.length !== 5 && (
-                <Chip color="warning" variant="flat" size="sm" className="w-full justify-center">
-                  ⚠️ Select 5 main numbers ({mainNumbers.length}/5 selected)
-                </Chip>
-              )}
-              {account && fhevmInstance && contractStatus.isBuyingOpen && !contractStatus.hasDrawn && 
-               mainNumbers.length === 5 && bonusNumbers.length !== 2 && (
-                <Chip color="warning" variant="flat" size="sm" className="w-full justify-center">
-                  ⚠️ Select 2 bonus numbers ({bonusNumbers.length}/2 selected)
-                </Chip>
-              )}
+              {account &&
+                fhevmInstance &&
+                contractStatus.isBuyingOpen &&
+                !contractStatus.hasDrawn &&
+                mainNumbers.length !== 5 && (
+                  <Chip color="warning" variant="flat" size="sm" className="w-full justify-center">
+                    ⚠️ Select 5 main numbers ({mainNumbers.length}/5 selected)
+                  </Chip>
+                )}
+              {account &&
+                fhevmInstance &&
+                contractStatus.isBuyingOpen &&
+                !contractStatus.hasDrawn &&
+                mainNumbers.length === 5 &&
+                bonusNumbers.length !== 2 && (
+                  <Chip color="warning" variant="flat" size="sm" className="w-full justify-center">
+                    ⚠️ Select 2 bonus numbers ({bonusNumbers.length}/2 selected)
+                  </Chip>
+                )}
             </div>
           )}
         </CardBody>
@@ -421,4 +439,3 @@ const BuyTicket = ({
 };
 
 export default BuyTicket;
-

@@ -1,8 +1,9 @@
-import React from 'react';
-import { Button, Chip, Avatar, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/react';
-import { FiShield, FiPower, FiCopy, FiExternalLink, FiChevronDown } from 'react-icons/fi';
+import React from "react";
+import { Chip, Avatar } from "@heroui/react";
+import { FiShield, FiChevronDown } from "react-icons/fi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
-const Header = ({ account, balance, onConnect, onDisconnect }) => {
+const Header = ({ account, balance }) => {
   return (
     <header className="sticky top-0 z-50 bg-transparent border-b border-black/20">
       <div className="container mx-auto px-4 py-3 max-w-6xl">
@@ -17,9 +18,7 @@ const Header = ({ account, balance, onConnect, onDisconnect }) => {
             </div>
             <div>
               <h1 className="text-xl font-extrabold text-black flex items-center gap-2">
-                <span className="text-black">
-                  FHEVM Lottery
-                </span>
+                <span className="text-black">FHEVM Lottery</span>
                 <span className="text-xl">🎰</span>
               </h1>
               <div className="flex items-center gap-2 mt-1">
@@ -31,113 +30,131 @@ const Header = ({ account, balance, onConnect, onDisconnect }) => {
 
           {/* Wallet Connection */}
           <div className="animate-slideInRight">
-            {!account ? (
-              <Button
-                color="primary"
-                size="lg"
-                onPress={onConnect}
-                className="font-semibold px-8 shadow-lg shadow-primary-500/50 hover:shadow-xl hover:shadow-primary-500/60 transition-all"
-                startContent={
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                }
-              >
-                Connect Wallet
-              </Button>
-            ) : (
-              <div className="flex items-center gap-3">
-                {/* Balance Display */}
-                <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg border border-black/20 bg-black/5">
-                  <div>
-                    <p className="text-xs text-black/70 font-medium">Balance</p>
-                    <p className="text-sm font-bold text-black">{parseFloat(balance).toFixed(4)} ETH</p>
-                  </div>
-                  <Chip
-                    color="default"
-                    variant="solid"
-                    size="sm"
-                    startContent={
-                      <div className="w-2 h-2 bg-black rounded-sm" />
-                    }
-                  >
-                    Sepolia
-                  </Chip>
-                </div>
+            <ConnectButton.Custom>
+              {({
+                account: connectedAccount,
+                chain,
+                openAccountModal,
+                openChainModal,
+                openConnectModal,
+                authenticationStatus,
+                mounted,
+              }) => {
+                const ready = mounted && authenticationStatus !== "loading";
+                // 简化连接状态检查：只要有 account 就认为已连接
+                const connected = ready && connectedAccount;
 
-                {/* Account Dropdown */}
-                <Dropdown placement="bottom-end" backdrop="blur">
-                  <DropdownTrigger>
-                    <Button
-                      variant="flat"
-                      className="glass-effect border-white/20 px-4 py-6 hover:scale-105 transition-transform"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          size="sm"
-                          src={`https://api.dicebear.com/7.x/shapes/svg?seed=${account}`}
-                          className="ring-2 ring-amber-400/50"
-                        />
-                        <div className="text-left hidden sm:block">
-                          <p className="text-xs text-secondary-600">Connected</p>
-                          <p className="text-sm font-bold text-secondary-900">
-                            {account.slice(0, 6)}...{account.slice(-4)}
-                          </p>
-                        </div>
-                        <FiChevronDown className="w-4 h-4 text-secondary-600" />
-                      </div>
-                    </Button>
-                  </DropdownTrigger>
-                  <DropdownMenu
-                    aria-label="Account actions"
-                    className="w-64"
-                    itemClasses={{
-                      base: "gap-4",
-                    }}
+                // 调试日志
+                if (!ready) {
+                  console.log("🔍 RainbowKit: Not ready yet", { mounted, authenticationStatus });
+                }
+
+                return (
+                  <div
+                    {...(!ready && {
+                      "aria-hidden": true,
+                      style: {
+                        opacity: 0,
+                        pointerEvents: "none",
+                        userSelect: "none",
+                      },
+                    })}
                   >
-                    <DropdownItem
-                      key="account"
-                      className="h-14 gap-2"
-                      textValue="Account info"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          size="md"
-                          src={`https://api.dicebear.com/7.x/shapes/svg?seed=${account}`}
-                        />
-                        <div>
-                          <p className="font-semibold">{account.slice(0, 10)}...{account.slice(-8)}</p>
-                          <p className="text-xs text-default-500">{balance} ETH</p>
+                    {(() => {
+                      if (!connected) {
+                        return (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log("🔗 Opening connect modal...");
+                              openConnectModal();
+                            }}
+                            type="button"
+                            className="btn-black font-semibold px-8 py-3 shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-black/30 transition-all rounded-xl cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                />
+                              </svg>
+                              <span>Connect Wallet</span>
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      if (chain?.unsupported) {
+                        return (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openChainModal();
+                            }}
+                            type="button"
+                            className="btn-black font-semibold px-6 py-3 rounded-xl"
+                          >
+                            Wrong network
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <div className="flex items-center gap-3">
+                          {/* Balance Display */}
+                          <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-lg border border-black/20 bg-black/5">
+                            <div>
+                              <p className="text-xs text-black/70 font-medium">Balance</p>
+                              <p className="text-sm font-bold text-black">
+                                {parseFloat(balance || "0").toFixed(4)} ETH
+                              </p>
+                            </div>
+                            <Chip
+                              color="default"
+                              variant="solid"
+                              size="sm"
+                              startContent={<div className="w-2 h-2 bg-black rounded-sm" />}
+                            >
+                              Sepolia
+                            </Chip>
+                          </div>
+
+                          {/* Account Button */}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openAccountModal();
+                            }}
+                            type="button"
+                            className="flex items-center gap-3 px-4 py-2 rounded-xl border border-black/20 bg-white/50 hover:bg-white/70 transition-all cursor-pointer"
+                          >
+                            <Avatar
+                              size="sm"
+                              src={`https://api.dicebear.com/7.x/shapes/svg?seed=${connectedAccount.address}`}
+                              className="ring-2 ring-amber-400/50"
+                            />
+                            <div className="text-left hidden sm:block">
+                              <p className="text-xs text-black/60">Connected</p>
+                              <p className="text-sm font-bold text-black">
+                                {connectedAccount.displayName ||
+                                  `${connectedAccount.address.slice(0, 6)}...${connectedAccount.address.slice(-4)}`}
+                              </p>
+                            </div>
+                            <FiChevronDown className="w-4 h-4 text-black/60" />
+                          </button>
                         </div>
-                      </div>
-                    </DropdownItem>
-                    <DropdownItem
-                      key="copy"
-                      startContent={<FiCopy className="w-4 h-4" />}
-                      onPress={() => navigator.clipboard.writeText(account)}
-                    >
-                      Copy Address
-                    </DropdownItem>
-                    <DropdownItem
-                      key="explorer"
-                      startContent={<FiExternalLink className="w-4 h-4" />}
-                      onPress={() => window.open(`https://sepolia.etherscan.io/address/${account}`, '_blank')}
-                    >
-                      View on Explorer
-                    </DropdownItem>
-                    <DropdownItem
-                      key="disconnect"
-                      color="danger"
-                      className="text-danger"
-                      startContent={<FiPower className="w-4 h-4" />}
-                      onPress={onDisconnect}
-                    >
-                      Disconnect
-                    </DropdownItem>
-                  </DropdownMenu>
-                </Dropdown>
-              </div>
-            )}
+                      );
+                    })()}
+                  </div>
+                );
+              }}
+            </ConnectButton.Custom>
           </div>
         </div>
       </div>
@@ -146,4 +163,3 @@ const Header = ({ account, balance, onConnect, onDisconnect }) => {
 };
 
 export default Header;
-

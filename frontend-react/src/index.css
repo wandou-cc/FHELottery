@@ -1,8 +1,8 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
 * {
   scroll-behavior: smooth;
@@ -21,16 +21,26 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
   background: var(--yellow); /* updated theme yellow */
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
 }
 
-body::before { display: none; }
+body::before {
+  display: none;
+}
 
-#root { min-height: 100vh; position: relative; z-index: 1; }
+#root {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
@@ -130,7 +140,8 @@ body::before { display: none; }
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -139,7 +150,8 @@ body::before { display: none; }
 }
 
 @keyframes bounce-subtle {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -194,7 +206,9 @@ body::before { display: none; }
   height: 60px;
   border-radius: 9999px;
   background: var(--black);
-  box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 6px 12px rgba(0,0,0,0.15);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 6px 12px rgba(0, 0, 0, 0.15);
   animation: bounce-subtle 2s ease-in-out infinite;
   font-size: 20px;
   font-weight: 800;
@@ -202,14 +216,35 @@ body::before { display: none; }
 }
 
 /* Gradient text */
-.gradient-text { color: #111111; }
+.gradient-text {
+  color: #111111;
+}
 
 /* Smaller base sizing */
-.text-title { font-size: 36px; font-weight: 800; line-height: 1.15; color: var(--black); }
-.text-subtitle { font-size: 14px; color: var(--black); opacity: 0.9; }
-.btn-black { background:var(--black); color:#ffffff; border-radius: var(--radius-md); }
-.btn-black:hover { background:#000000; }
-.card-flat { background:var(--yellow); border:1px solid var(--border); border-radius: var(--radius-lg); }
+.text-title {
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--black);
+}
+.text-subtitle {
+  font-size: 14px;
+  color: var(--black);
+  opacity: 0.9;
+}
+.btn-black {
+  background: var(--black);
+  color: #ffffff;
+  border-radius: var(--radius-md);
+}
+.btn-black:hover {
+  background: #000000;
+}
+.card-flat {
+  background: var(--yellow);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
 
 /* Floating elements */
 .floating {
@@ -217,7 +252,8 @@ body::before { display: none; }
 }
 
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px);
   }
   50% {
@@ -237,22 +273,69 @@ body::before { display: none; }
 
 /* Glow effect */
 .glow {
-  box-shadow: 0 0 20px rgba(102, 126, 234, 0.5),
-              0 0 40px rgba(102, 126, 234, 0.3),
-              0 0 60px rgba(102, 126, 234, 0.2);
+  box-shadow:
+    0 0 20px rgba(102, 126, 234, 0.5),
+    0 0 40px rgba(102, 126, 234, 0.3),
+    0 0 60px rgba(102, 126, 234, 0.2);
   animation: glow 2s ease-in-out infinite alternate;
 }
 
 @keyframes glow {
   from {
-    box-shadow: 0 0 20px rgba(102, 126, 234, 0.5),
-                0 0 40px rgba(102, 126, 234, 0.3),
-                0 0 60px rgba(102, 126, 234, 0.2);
+    box-shadow:
+      0 0 20px rgba(102, 126, 234, 0.5),
+      0 0 40px rgba(102, 126, 234, 0.3),
+      0 0 60px rgba(102, 126, 234, 0.2);
   }
   to {
-    box-shadow: 0 0 30px rgba(118, 75, 162, 0.6),
-                0 0 60px rgba(118, 75, 162, 0.4),
-                0 0 90px rgba(118, 75, 162, 0.3);
+    box-shadow:
+      0 0 30px rgba(118, 75, 162, 0.6),
+      0 0 60px rgba(118, 75, 162, 0.4),
+      0 0 90px rgba(118, 75, 162, 0.3);
   }
 }
 
+/* RainbowKit 自定义样式 */
+[data-rk] {
+  --rk-radii-connectButton: 12px;
+  --rk-radii-actionButton: 12px;
+  --rk-radii-modal: 16px;
+}
+
+/* RainbowKit Modal 样式 - 确保 modal 在最上层 */
+[data-rk] [data-rk-modal] {
+  border-radius: 16px;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  z-index: 9999 !important;
+}
+
+/* RainbowKit 连接按钮样式 */
+[data-rk] button[data-rk] {
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* RainbowKit 钱包列表项样式 */
+[data-rk] [data-rk-modal] button {
+  border-radius: 12px;
+  transition: all 0.2s;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+[data-rk] [data-rk-modal] button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* RainbowKit 账户按钮样式 */
+[data-rk] [data-rk-account] {
+  border-radius: 12px;
+}
+
+/* 确保 RainbowKit Modal 容器在最上层 */
+[data-rk] > div {
+  z-index: 9999 !important;
+}

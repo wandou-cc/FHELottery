@@ -1,182 +1,269 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BrowserProvider, formatEther } from 'ethers';
-
-const SEPOLIA_CHAIN_ID = '0xaa36a7'; // 11155111
+import { useAccount, useBalance, useConnect, useDisconnect, useSwitchChain } from "wagmi";
+import { BrowserProvider } from "ethers";
+import { useMemo } from "react";
 
 export const useWallet = () => {
-  const [account, setAccount] = useState(null);
-  const [balance, setBalance] = useState('0');
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-  const [isManuallyDisconnected, setIsManuallyDisconnected] = useState(() => {
-    // 从localStorage读取断开连接状态
-    return localStorage.getItem('walletManuallyDisconnected') === 'true';
+  // Wagmi hooks
+  const { address, isConnected, chainId, connector } = useAccount();
+  const { connect, connectors, isPending, error: connectError } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { switchChain } = useSwitchChain();
+  const { data: balanceData } = useBalance({
+    address: address,
   });
 
-  const updateBalance = useCallback(async (address, browserProvider) => {
-    if (!browserProvider || !address) return;
-    try {
-      const balance = await browserProvider.getBalance(address);
-      setBalance(parseFloat(formatEther(balance)).toFixed(4));
-    } catch (error) {
-      console.error('Failed to get balance:', error);
-    }
-  }, []);
+  // 转换为 ethers provider 和 signer（如果需要）
+  const provider = useMemo(() => {
+    if (!isConnected || !connector) return null;
+    // wagmi 使用 viem，但我们的合约可能需要 ethers
+    // 这里返回 connector 的 provider，后续可以通过它创建 BrowserProvider
+    return connector;
+  }, [isConnected, connector]);
 
-  const checkNetwork = async () => {
-    if (!window.ethereum) return false;
-    
-    try {
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-      
-      if (chainId !== SEPOLIA_CHAIN_ID) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: SEPOLIA_CHAIN_ID }],
-          });
-        } catch (switchError) {
-          if (switchError.code === 4902) {
-            await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: SEPOLIA_CHAIN_ID,
-                chainName: 'Sepolia Test Network',
-                nativeCurrency: {
-                  name: 'SepoliaETH',
-                  symbol: 'ETH',
-                  decimals: 18,
-                },
-                rpcUrls: ['https://sepolia.infura.io/v3'],
-                blockExplorerUrls: ['https://sepolia.etherscan.io'],
-              }],
-            });
-          } else {
-            throw switchError;
-          }
-        }
-      }
-      return true;
-    } catch (error) {
-      console.error('Network check failed:', error);
-      return false;
-    }
-  };
+  // 获取余额字符串
+  const balance = useMemo(() => {
+    if (!balanceData) return "0";
+    return parseFloat(balanceData.formatted).toFixed(4);
+  }, [balanceData]);
 
+  // 连接钱包函数（打开钱包选择器）
   const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert('Please install MetaMask wallet');
-      return;
-    }
-
-    try {
-      // Check and switch network
-      const networkOk = await checkNetwork();
-      if (!networkOk) {
-        throw new Error('Failed to switch to Sepolia network');
-      }
-
-      // Request account access
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-
-      const browserProvider = new BrowserProvider(window.ethereum);
-      const signer = await browserProvider.getSigner();
-
-      // 验证网络ID
-      const network = await browserProvider.getNetwork();
-      if (network.chainId !== 11155111n) {
-        throw new Error('Please switch to Sepolia testnet (Chain ID: 11155111)');
-      }
-
-      setAccount(accounts[0]);
-      setProvider(browserProvider);
-      setSigner(signer);
-      setIsManuallyDisconnected(false);
-      localStorage.setItem('walletManuallyDisconnected', 'false');
-      
-      updateBalance(accounts[0], browserProvider);
-    } catch (error) {
-      console.error('Wallet connection failed:', error);
-      alert('Failed to connect wallet: ' + error.message);
+    // 这个函数现在由 WalletConnectButton 组件处理
+    // 保留这个函数以保持接口兼容
+    if (connectors.length > 0) {
+      // 尝试连接第一个可用的连接器（通常是 injected）
+      connect({ connector: connectors[0] });
     }
   };
 
-  const disconnectWallet = useCallback(() => {
-    console.log('🔌 Disconnecting wallet...');
-    
-    // 清除所有状态
-    setAccount(null);
-    setBalance('0');
-    setProvider(null);
-    setSigner(null);
-    setIsManuallyDisconnected(true);
-    
-    // 保存断开连接状态到localStorage
-    localStorage.setItem('walletManuallyDisconnected', 'true');
-    
-    console.log('✅ Wallet disconnected');
-  }, []);
+  // 断开钱包
+  const disconnectWallet = () => {
+    disconnect();
+  };
 
-  // Check for existing connection
-  useEffect(() => {
-    if (window.ethereum) {
-      // 只有在用户没有主动断开连接时才自动连接
-      if (!isManuallyDisconnected) {
-        window.ethereum.request({ method: 'eth_accounts' })
-          .then(async accounts => {
-            if (accounts.length > 0) {
-              const browserProvider = new BrowserProvider(window.ethereum);
-              const signer = await browserProvider.getSigner();
-              
-              setAccount(accounts[0]);
-              setProvider(browserProvider);
-              setSigner(signer);
-              updateBalance(accounts[0], browserProvider);
-            }
-          })
-          .catch(console.error);
+  // 切换网络（如果需要）
+  const switchToSepolia = async () => {
+    if (chainId !== 11155111n) {
+      try {
+        switchChain({ chainId: 11155111 });
+      } catch (error) {
+        console.error("切换网络失败:", error);
       }
+    }
+  };
 
-      // Listen for account changes
-      const handleAccountsChanged = (accounts) => {
-        if (accounts.length === 0) {
-          disconnectWallet();
-        } else if (!isManuallyDisconnected) {
-          // 只有在用户没有主动断开连接时才更新账户
-          setAccount(accounts[0]);
-          if (provider) {
-            updateBalance(accounts[0], provider);
+  // 辅助函数：识别 provider 类型
+  const identifyProvider = (provider) => {
+    if (!provider) return null;
+    if (provider.isMetaMask) return { type: "metaMask", provider };
+    if (
+      provider.isOkxWallet ||
+      provider.isOKExWallet ||
+      provider.constructor?.name?.includes("Okx") ||
+      provider.constructor?.name?.includes("OKX")
+    ) {
+      return { type: "okx", provider };
+    }
+    return { type: "unknown", provider };
+  };
+
+  // 通过 connector 和账户来确认当前活跃的 provider
+  const getActiveProvider = async (targetAccount, connector) => {
+    if (typeof window === "undefined" || !window.ethereum) {
+      return null;
+    }
+
+    if (!window.ethereum.providers || !Array.isArray(window.ethereum.providers)) {
+      return window.ethereum;
+    }
+
+    // 优先通过 connector 信息来确定
+    if (connector) {
+      const connectorId = connector.id?.toLowerCase() || "";
+      const connectorName = connector.name?.toLowerCase() || "";
+
+      // 如果明确是 MetaMask，直接返回 MetaMask provider
+      if (
+        connectorId.includes("metamask") ||
+        connectorId.includes("io.metamask") ||
+        connectorName.includes("metamask")
+      ) {
+        console.log("🎯 useWallet: Connector indicates MetaMask");
+        for (const provider of window.ethereum.providers) {
+          if (provider.isMetaMask) {
+            console.log("✅ useWallet: Found and using MetaMask provider directly");
+            return provider;
           }
         }
-      };
+      }
 
-      // Listen for network changes
-      const handleChainChanged = () => {
-        window.location.reload();
-      };
-
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
-
-      // 清理监听器
-      return () => {
-        if (window.ethereum.removeListener) {
-          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-          window.ethereum.removeListener('chainChanged', handleChainChanged);
+      // 如果明确是 OKX
+      if (
+        connectorId.includes("okx") ||
+        connectorId.includes("okex") ||
+        connectorName.includes("okx") ||
+        connectorName.includes("okex")
+      ) {
+        console.log("🎯 useWallet: Connector indicates OKX");
+        for (const provider of window.ethereum.providers) {
+          const identified = identifyProvider(provider);
+          if (identified && identified.type === "okx") {
+            console.log("✅ useWallet: Found and using OKX provider");
+            return provider;
+          }
         }
-      };
+      }
     }
-  }, [provider, updateBalance, disconnectWallet, isManuallyDisconnected]);
+
+    // 回退：通过账户匹配查找
+    if (targetAccount) {
+      console.log("🔍 useWallet: Falling back to account matching for:", targetAccount);
+      for (const provider of window.ethereum.providers) {
+        try {
+          const accounts = await provider.request({ method: "eth_accounts" });
+          if (accounts && accounts.length > 0) {
+            const providerAccount = accounts[0].toLowerCase();
+            const targetAccountLower = targetAccount.toLowerCase();
+
+            if (providerAccount === targetAccountLower) {
+              const identified = identifyProvider(provider);
+              console.log(`✅ useWallet: Found provider (${identified?.type || "unknown"}) by account match`);
+              return provider;
+            }
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  // 根据 connector 选择正确的 provider
+  const getProviderByConnector = async (connector, targetAccount) => {
+    if (typeof window === "undefined" || !window.ethereum) {
+      return null;
+    }
+
+    // 🔑 关键修复：优先使用 connector 提供的 provider
+    if (connector && typeof connector.getProvider === "function") {
+      try {
+        console.log("🎯 useWallet: Using connector.getProvider() for:", connector.name);
+        const connectorProvider = await connector.getProvider();
+        if (connectorProvider) {
+          console.log("✅ useWallet: Got provider from connector:", {
+            name: connector.name,
+            id: connector.id,
+            isMetaMask: connectorProvider.isMetaMask,
+            isOkxWallet: connectorProvider.isOkxWallet,
+          });
+          return new BrowserProvider(connectorProvider);
+        }
+      } catch (error) {
+        console.warn("⚠️ useWallet: Failed to get provider from connector:", error);
+      }
+    }
+
+    // 首先尝试通过 connector 和账户找到活跃的 provider
+    const activeProvider = await getActiveProvider(targetAccount, connector);
+    if (activeProvider) {
+      return new BrowserProvider(activeProvider);
+    }
+
+    if (!connector) {
+      if (window.ethereum.isMetaMask) {
+        return new BrowserProvider(window.ethereum);
+      }
+      if (window.ethereum.providers) {
+        const metaMask = window.ethereum.providers.find((p) => p.isMetaMask);
+        if (metaMask) return new BrowserProvider(metaMask);
+      }
+      return new BrowserProvider(window.ethereum);
+    }
+
+    const connectorId = connector.id?.toLowerCase() || "";
+    const connectorName = connector.name?.toLowerCase() || "";
+
+    const providers =
+      window.ethereum.providers && Array.isArray(window.ethereum.providers)
+        ? window.ethereum.providers
+        : [window.ethereum];
+
+    if (connectorId.includes("metamask") || connectorId.includes("io.metamask") || connectorName.includes("metamask")) {
+      console.log("🎯 useWallet: User selected MetaMask, finding MetaMask provider...");
+      for (const provider of providers) {
+        const identified = identifyProvider(provider);
+        if (identified && identified.type === "metaMask") {
+          console.log("✅ useWallet: Found and using MetaMask provider");
+          return new BrowserProvider(identified.provider);
+        }
+      }
+    }
+
+    if (
+      connectorId.includes("okx") ||
+      connectorId.includes("okex") ||
+      connectorName.includes("okx") ||
+      connectorName.includes("okex")
+    ) {
+      console.log("🎯 useWallet: User selected OKX, finding OKX provider...");
+      for (const provider of providers) {
+        const identified = identifyProvider(provider);
+        if (identified && identified.type === "okx") {
+          console.log("✅ useWallet: Found and using OKX provider");
+          return new BrowserProvider(identified.provider);
+        }
+      }
+    }
+
+    if (window.ethereum.isMetaMask) {
+      return new BrowserProvider(window.ethereum);
+    }
+    if (window.ethereum.providers) {
+      const metaMask = window.ethereum.providers.find((p) => p.isMetaMask);
+      if (metaMask) return new BrowserProvider(metaMask);
+    }
+    return new BrowserProvider(window.ethereum);
+  };
+
+  // 创建 ethers BrowserProvider（用于兼容现有代码）
+  const getEthersProvider = async () => {
+    if (!isConnected || !address) return null;
+
+    try {
+      return await getProviderByConnector(connector, address);
+    } catch (error) {
+      console.error("创建 ethers provider 失败:", error);
+    }
+    return null;
+  };
+
+  // 获取 signer（用于兼容现有代码）
+  const getSigner = async () => {
+    const ethersProvider = await getEthersProvider();
+    if (ethersProvider) {
+      return await ethersProvider.getSigner();
+    }
+    return null;
+  };
 
   return {
-    account,
+    account: address || null,
     balance,
-    provider,
-    signer,
+    provider: provider ? { getEthersProvider, getSigner } : null,
+    signer: null, // 需要时通过 getSigner() 获取
+    isConnected,
+    chainId,
+    connector,
+    connectors,
     connectWallet,
-    disconnectWallet
+    disconnectWallet,
+    switchToSepolia,
+    isPending,
+    connectError,
+    // 提供兼容性方法
+    getEthersProvider,
+    getSigner,
   };
 };
-
